@@ -1,7 +1,3 @@
-✅ Repo live.
-
-README updaten — Stift klicken und ersetzen mit:
-
 markdown
 Daily Mission Generator ⚡
 
