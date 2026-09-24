@@ -1,6 +1,6 @@
 import json
 import random
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 # ==============================
@@ -8,7 +8,7 @@ from pathlib import Path
 # Sel Edition - Python Version
 # ==============================
 
-SAVE_FILE = Path("mission_save.json")
+SAVE_FILE = Path(__file__).resolve().with_name("mission_save.json")
 
 MISSIONS = {
     "easy": [
@@ -55,8 +55,10 @@ def load_data():
 
 
 def save_data(data):
-    with open(SAVE_FILE, "w", encoding="utf-8") as file:
+    temporary_file = SAVE_FILE.with_suffix(SAVE_FILE.suffix + ".tmp")
+    with open(temporary_file, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4, ensure_ascii=False)
+    temporary_file.replace(SAVE_FILE)
 
 
 def get_level(xp):
@@ -87,14 +89,26 @@ def generate_daily_missions():
     }
 
 
-def check_new_day(data):
-    today = str(date.today())
+def check_new_day(data, today=None):
+    today = today or date.today()
+    today_string = today.isoformat()
 
-    if data["last_day"] != today:
-        if data["done"]:
-            data["streak"] += 1
+    if data.get("last_day") != today_string:
+        last_day = data.get("last_day", "")
+        if last_day:
+            try:
+                previous_day = date.fromisoformat(last_day)
+            except ValueError:
+                data["streak"] = 0
+            else:
+                if previous_day == today - timedelta(days=1) and data.get("done"):
+                    data["streak"] = data.get("streak", 0) + 1
+                else:
+                    data["streak"] = 0
+        else:
+            data["streak"] = 0
 
-        data["last_day"] = today
+        data["last_day"] = today_string
         data["today_missions"] = generate_daily_missions()
         data["done"] = []
         save_data(data)
@@ -187,8 +201,7 @@ def main():
         print("Menü:")
         print("1 = Mission abschließen")
         print("2 = Verlauf anzeigen")
-        print("3 = Neue Missionen generieren")
-        print("4 = Alles zurücksetzen")
+        print("3 = Alles zurücksetzen")
         print("0 = Beenden")
 
         choice = input("Auswahl: ").strip()
@@ -198,11 +211,6 @@ def main():
         elif choice == "2":
             show_history(data)
         elif choice == "3":
-            data["today_missions"] = generate_daily_missions()
-            data["done"] = []
-            save_data(data)
-            print("Neue Missionen wurden generiert.")
-        elif choice == "4":
             reset_all()
             data = load_data()
             check_new_day(data)
